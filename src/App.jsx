@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 
 const LS_KEY = 'rekeningsplitter_api_key'
 
@@ -827,11 +827,13 @@ export default function App() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(LS_KEY) ?? '')
   const [items, setItems] = useState([])
 
-  useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem(LS_KEY, apiKey)
+  // Write to localStorage synchronously in the same call — no useEffect timing gap.
+  const saveApiKey = (key) => {
+    if (key) {
+      localStorage.setItem(LS_KEY, key)
     }
-  }, [apiKey])
+    setApiKey(key)
+  }
 
   const forgetKey = () => {
     localStorage.removeItem(LS_KEY)
@@ -876,7 +878,7 @@ export default function App() {
               setItems={setItems}
               onNext={() => setStep(1)}
               apiKey={apiKey}
-              setApiKey={setApiKey}
+              setApiKey={saveApiKey}
               forgetKey={forgetKey}
             />
           )}
