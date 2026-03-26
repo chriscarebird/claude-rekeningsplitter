@@ -70,7 +70,7 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
           headers: {
             'x-api-key': apiKey.trim(),
             'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-calls': 'true',
+            'anthropic-dangerous-direct-browser-access': 'true',
             'content-type': 'application/json',
           },
           body: JSON.stringify({
