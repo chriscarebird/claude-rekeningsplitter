@@ -48,7 +48,12 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
         const b64 = await toBase64(file)
         const mediaType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // In dev, Vite proxies /anthropic → https://api.anthropic.com to avoid CORS.
+        // In production builds served from the same origin, use the real URL directly.
+        const apiBase = import.meta.env.DEV
+          ? '/anthropic'
+          : 'https://api.anthropic.com'
+        const response = await fetch(`${apiBase}/v1/messages`, {
           method: 'POST',
           headers: {
             'x-api-key': apiKey.trim(),
