@@ -1,7 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
 
-const LS_KEY = 'rekeningsplitter_api_key'
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STEPS = ['Upload Receipt', 'Add Diners', 'Assign Items', 'Tip', 'Results']
@@ -39,7 +37,7 @@ function fmt(n) {
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
-function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
+function StepUpload({ items, setItems, onNext }) {
   const [dragOver, setDragOver] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -48,61 +46,26 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
 
   const parseReceipt = useCallback(
     async (file) => {
-      if (!apiKey.trim()) {
-        setError('Please enter your Anthropic API key above.')
-        return
-      }
       setLoading(true)
       setError(null)
       setPreviewUrl(URL.createObjectURL(file))
 
       try {
-        const b64 = await resizeAndEncode(file)
-        const mediaType = 'image/jpeg'
+        const imageBase64 = await resizeAndEncode(file)
 
-        // In dev, Vite proxies /anthropic → https://api.anthropic.com to avoid CORS.
-        // In production builds served from the same origin, use the real URL directly.
-        const apiBase = import.meta.env.DEV
-          ? '/anthropic'
-          : 'https://api.anthropic.com'
-        const response = await fetch(`${apiBase}/v1/messages`, {
+        const response = await fetch('/api/parse-receipt', {
           method: 'POST',
-          headers: {
-            'x-api-key': apiKey.trim(),
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
-            max_tokens: 1024,
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'image',
-                    source: { type: 'base64', media_type: mediaType, data: b64 },
-                  },
-                  {
-                    type: 'text',
-                    text: 'Extract every line item from this receipt. Return ONLY a valid JSON array — no markdown, no explanation. Each element must have exactly these fields: {"name": string, "total": number, "quantity": number}. The total should be the full price for that line (unit price × quantity). If quantity is not shown, use 1.',
-                  },
-                ],
-              },
-            ],
-          }),
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ imageBase64, mediaType: 'image/jpeg' }),
         })
 
+        const data = await response.json()
+
         if (!response.ok) {
-          const body = await response.json().catch(() => ({}))
-          throw new Error(body?.error?.message || `API error ${response.status}`)
+          throw new Error(data?.error || `API error ${response.status}`)
         }
 
-        const data = await response.json()
         const text = data.content?.[0]?.text ?? ''
-
-        // Strip markdown fences if present
         const cleaned = text.replace(/```(?:json)?\n?/g, '').trim()
         const parsed = JSON.parse(cleaned)
 
@@ -118,7 +81,6 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
         )
       } catch (err) {
         setError(err.message)
-        // Provide a blank item so the user can manually add items
         if (items.length === 0) {
           setItems([{ id: 0, name: '', total: 0, quantity: 1 }])
         }
@@ -126,7 +88,7 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
         setLoading(false)
       }
     },
-    [apiKey, items.length, setItems],
+    [items.length, setItems],
   )
 
   const handleFile = (file) => {
@@ -165,36 +127,6 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
 
   return (
     <div className="space-y-6">
-      {/* API Key */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Anthropic API Key
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="password"
-            placeholder="sk-ant-..."
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          />
-          {apiKey && (
-            <button
-              onClick={forgetKey}
-              title="Forget saved key"
-              className="px-3 py-2 rounded-lg border border-gray-300 text-xs text-gray-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap"
-            >
-              Forget key
-            </button>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-gray-400">
-          {apiKey
-            ? 'Key saved in your browser — click "Forget key" to remove it.'
-            : 'Your key will be saved in localStorage for future sessions.'}
-        </p>
-      </div>
-
       {/* Drop zone */}
       <div
         className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
@@ -836,21 +768,7 @@ function ProgressBar({ step }) {
 
 export default function App() {
   const [step, setStep] = useState(0)
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(LS_KEY) ?? '')
   const [items, setItems] = useState([])
-
-  // Write to localStorage synchronously in the same call — no useEffect timing gap.
-  const saveApiKey = (key) => {
-    if (key) {
-      localStorage.setItem(LS_KEY, key)
-    }
-    setApiKey(key)
-  }
-
-  const forgetKey = () => {
-    localStorage.removeItem(LS_KEY)
-    setApiKey('')
-  }
   const [diners, setDiners] = useState([])
   const [assignments, setAssignments] = useState({})
   const [tip, setTip] = useState('')
@@ -889,9 +807,6 @@ export default function App() {
               items={items}
               setItems={setItems}
               onNext={() => setStep(1)}
-              apiKey={apiKey}
-              setApiKey={saveApiKey}
-              forgetKey={forgetKey}
             />
           )}
           {step === 1 && (
