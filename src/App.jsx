@@ -207,17 +207,17 @@ function StepUpload({ items, setItems, onNext }) {
                 </div>
                 {/* Row 2: qty + total */}
                 <div className="flex gap-2">
-                  <div className="flex items-center gap-1.5 flex-1">
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
                     <span className="text-xs text-gray-400 whitespace-nowrap">Qty</span>
                     <input
                       type="number"
                       min="1"
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
-                      className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-0 flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     />
                   </div>
-                  <div className="flex items-center gap-1.5 flex-1">
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
                     <span className="text-xs text-gray-400 whitespace-nowrap">€</span>
                     <input
                       type="number"
@@ -225,7 +225,7 @@ function StepUpload({ items, setItems, onNext }) {
                       step="0.01"
                       value={item.total}
                       onChange={(e) => updateItem(item.id, 'total', Number(e.target.value))}
-                      className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-0 flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     />
                   </div>
                 </div>
@@ -790,7 +790,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-start justify-center p-4 pt-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-start justify-center p-4 pt-8 overflow-x-hidden">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
