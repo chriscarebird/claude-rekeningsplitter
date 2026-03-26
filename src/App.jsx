@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+
+const LS_KEY = 'rekeningsplitter_api_key'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ function fmt(n) {
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
-function StepUpload({ items, setItems, onNext, apiKey, setApiKey }) {
+function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
   const [dragOver, setDragOver] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -151,15 +153,28 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey }) {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Anthropic API Key
         </label>
-        <input
-          type="password"
-          placeholder="sk-ant-..."
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
+        <div className="flex gap-2">
+          <input
+            type="password"
+            placeholder="sk-ant-..."
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+          {apiKey && (
+            <button
+              onClick={forgetKey}
+              title="Forget saved key"
+              className="px-3 py-2 rounded-lg border border-gray-300 text-xs text-gray-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap"
+            >
+              Forget key
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-xs text-gray-400">
-          Your key is never stored — it lives only in this browser session.
+          {apiKey
+            ? 'Key saved in your browser — click "Forget key" to remove it.'
+            : 'Your key will be saved in localStorage for future sessions.'}
         </p>
       </div>
 
@@ -804,8 +819,19 @@ function ProgressBar({ step }) {
 
 export default function App() {
   const [step, setStep] = useState(0)
-  const [apiKey, setApiKey] = useState('')
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(LS_KEY) ?? '')
   const [items, setItems] = useState([])
+
+  useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem(LS_KEY, apiKey)
+    }
+  }, [apiKey])
+
+  const forgetKey = () => {
+    localStorage.removeItem(LS_KEY)
+    setApiKey('')
+  }
   const [diners, setDiners] = useState([])
   const [assignments, setAssignments] = useState({})
   const [tip, setTip] = useState('')
@@ -846,6 +872,7 @@ export default function App() {
               onNext={() => setStep(1)}
               apiKey={apiKey}
               setApiKey={setApiKey}
+              forgetKey={forgetKey}
             />
           )}
           {step === 1 && (
