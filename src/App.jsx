@@ -8,16 +8,28 @@ const STEPS = ['Upload Receipt', 'Add Diners', 'Assign Items', 'Tip', 'Results']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function toBase64(file) {
+// Resize to fit within MAX_PX on the longest side and re-encode as JPEG.
+// Anthropic recommends ≤1568px; large camera photos cause 502 errors.
+const MAX_PX = 1568
+const JPEG_QUALITY = 0.85
+
+function resizeAndEncode(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      // strip data:...;base64, prefix
-      const b64 = reader.result.split(',')[1]
-      resolve(b64)
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const { naturalWidth: w, naturalHeight: h } = img
+      const scale = Math.min(1, MAX_PX / Math.max(w, h))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(w * scale)
+      canvas.height = Math.round(h * scale)
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY)
+      resolve(dataUrl.split(',')[1])
     }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+    img.onerror = reject
+    img.src = objectUrl
   })
 }
 
@@ -45,8 +57,8 @@ function StepUpload({ items, setItems, onNext, apiKey, setApiKey, forgetKey }) {
       setPreviewUrl(URL.createObjectURL(file))
 
       try {
-        const b64 = await toBase64(file)
-        const mediaType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+        const b64 = await resizeAndEncode(file)
+        const mediaType = 'image/jpeg'
 
         // In dev, Vite proxies /anthropic → https://api.anthropic.com to avoid CORS.
         // In production builds served from the same origin, use the real URL directly.
